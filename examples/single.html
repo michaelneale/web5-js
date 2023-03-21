@@ -43,9 +43,10 @@
   <script type="module">
     import { Web5, DWebNodeSDK } from 'https://cdn.jsdelivr.net/npm/@tbd54566975/web5@v0.2.0-unstable.03d4273-2023.3.17-04-09-58/dist/browser.mjs';
 
-        
 
-    // Create a new ION DID and public-private key pair.
+    /* boilerplate start - required for every web5 app */
+
+    // Create a new ION DID and public-private key pair. This always has to be done once. 
     const myDid = await Web5.did.create('ion', {
       services: [
         {
@@ -66,6 +67,10 @@
       endpoint: 'app://dwn',
       keys: myDid.keys[0].keypair
     });
+
+    /* boilerplace end */
+
+    /* Below are examples of operations with the DWN: writing and reading records. */
 
     // Write a plain text record to the in-memory DWN.
     let response = await Web5.records.write(myDid.id, {
@@ -117,10 +122,10 @@
     function base64UrlToString(encodedData) {
       return DWebNodeSDK.Encoder.bytesToString(DWebNodeSDK.Encoder.base64UrlToBytes(encodedData));
     }
-
     function base64UrlToObject(encodedData) {
       return DWebNodeSDK.Encoder.base64UrlToObject(encodedData);
     }
+
   </script>
 </body>
 
