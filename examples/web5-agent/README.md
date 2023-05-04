@@ -81,7 +81,7 @@ in the global folder `{prefix}/lib/node_modules/web5-js`:
 
 Then comment out the import of the published package and uncomment the local import, such that it reads:
 ```javascript
-// import { Web5 } from 'https://unpkg.com/@tbd54566975/web5@0.6.0/dist/browser.mjs';
+// import { Web5 } from 'https://unpkg.com/@tbd54566975/web5@0.6.3/dist/browser.mjs';
 import { Web5 } from './browser.mjs';
 ```
 

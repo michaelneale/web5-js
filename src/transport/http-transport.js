@@ -1,6 +1,9 @@
 import crossFetch from 'cross-fetch';
 import { Encoder } from '@tbd54566975/dwn-sdk-js';
+import { v4 as uuidv4 } from 'uuid';
 
+import { createJsonRpcRequest } from './json-rpc.js';
+import { parseJson } from '../utils.js';
 import { Transport } from './transport.js';
 
 /**
@@ -17,29 +20,34 @@ import { Transport } from './transport.js';
 const fetch = globalThis.fetch ?? crossFetch;
 
 export class HttpTransport extends Transport {
-  ENCODED_MESSAGE_HEADER = 'DWN-MESSAGE';
-  ENCODED_RESPONSE_HEADER = 'WEB5-RESPONSE';
+  DWN_MESSAGE_HEADER = 'dwn-request';
+  DWN_RESPONSE_HEADER = 'dwn-response';
+  WEB5_RESPONSE_HEADER = 'WEB5-RESPONSE';
 
   async encodeMessage(message) {
-    return Encoder.stringToBase64Url(JSON.stringify(message));
+    return JSON.stringify(message);
   }
 
-  async decodeMessage(base64urlString) {
-    return Encoder.base64UrlToObject(base64urlString);
+  async decodeMessage(message) {
+    return parseJson(message);
   }
 
   async send(endpoint, request) { // override
+    // Construct a JSON RPC Request.
+    const requestId = uuidv4();
+    const dwnRequest = createJsonRpcRequest(requestId, 'dwn.processMessage', {
+      ...request.message,
+      author: request.author,
+      target: request.target,
+    });
+
+    // Transmit the JSON RPC Request to an agent or DWN server and receive the response.
     const response = await fetch(endpoint, {
       method: 'POST',
       mode: 'cors',
       cache: 'no-cache',
       headers: {
-        [this.ENCODED_MESSAGE_HEADER]: await this.encodeMessage({
-          ...request.message,
-          author: request.author,
-          target: request.target,
-        }),
-        'Content-Type': 'application/octet-stream',
+        [this.DWN_MESSAGE_HEADER]: await this.encodeMessage(dwnRequest),
       },
       body: request.data,
     });
@@ -48,15 +56,26 @@ export class HttpTransport extends Transport {
       throw new Error(`Fetch failed with status ${response.status}`);
     }
 
-    const web5ResponseHeader = response.headers.get(this.ENCODED_RESPONSE_HEADER);
+    // Attemp to read the serialized JSON RPC message from either a Web5 User Agent or DWN server, if present.
+    const dwnResponseHeader = response.headers.get(this.DWN_RESPONSE_HEADER);
+    const web5ResponseHeader = response.headers.get(this.WEB5_RESPONSE_HEADER);
+
     if (web5ResponseHeader) {
+      // TODO: Remove after `desktop-agent` refactor is completed.
       // RecordsRead responses return `message` and `status` as header values, with a `data` ReadableStream in the body.
-      const { entries = null, message, record, status } = await this.decodeMessage(web5ResponseHeader);
+      const { entries = null, message, record, status } = Encoder.base64UrlToObject(web5ResponseHeader);
       return { entries, message, record: { ...record, data: response.body }, status };
 
-    } else { 
+    } else if (dwnResponseHeader) {
+      // RecordsRead responses return `message` and `status` as header values, with a `data` ReadableStream in the body.
+      const responseJson = await this.decodeMessage(dwnResponseHeader);
+      const { entries = null, message, record, status } = responseJson.result.reply;
+      return { entries, message, record: { ...record, data: response.body }, status };
+
+    } else {
       // All other DWN responses return `entries`, `message`, and `status` as stringified JSON in the body.
-      return await response.json();
+      const responseJson = await response.json();
+      return responseJson.result.reply;
     }
   }
 }
