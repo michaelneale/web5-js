@@ -7,6 +7,9 @@ export class TestDataGenerator {
     return ion.create();
   }
 
+  /**
+   * Generates a JavaScript object of given size in bytes.
+   */
   static generateJson(sizeBytes) {
     const itemCount = sizeBytes/1024;
     const items = [];

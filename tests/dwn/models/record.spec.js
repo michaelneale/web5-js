@@ -10,6 +10,8 @@ import { createTimeoutPromise } from '../../test-utils/promises.js';
 import { TestDataGenerator } from '../../test-utils/test-data-generator.js';
 import { TestDwn } from '../../test-utils/test-dwn.js';
 
+import chatProtocolDefinition from '../../fixtures/protocol-definitions/chat.json' assert { type: 'json' };
+
 chai.use(chaiAsPromised);
 
 describe('Record', async () => {
@@ -148,5 +150,130 @@ describe('Record', async () => {
         });
       });
     });
+  });
+
+  describe('created from RecordsWrite response', () => {
+    let dataText, textWriteResponse;
+
+    before(async () => {
+      dataText = TestDataGenerator.randomString(100);
+      ({ dataBytes, dataFormat } = dataToBytes(dataText));
+    });
+
+    it('should retain all expected properties when a protocol is specified', async () => {
+      const protocolsConfigureResponse = await web5.dwn.protocols.configure(alice.id, {
+        author: alice.id,
+        message: {
+          protocol: 'http://example.org/chat/protocol',
+          definition: chatProtocolDefinition,
+        }
+      });
+
+      const target = alice.id;
+      const request = {
+        author: alice.id,
+        data: dataText,
+        message: {
+          dataFormat: dataFormat,
+          protocol: 'http://example.org/chat/protocol',
+          protocolPath: 'message',
+          schema: 'http://example.org/chat/schema/message',
+        }
+      };
+
+      textWriteResponse = await web5.dwn.records.write(target, request);
+      
+      const record = new Record(web5.dwn, {
+        ...textWriteResponse.message,
+        encodedData: dataBytes,
+        target,
+        author: request.author
+      });
+
+      // Retained Web5 JS properties.
+      expect(record.author).to.equal(alice.id);
+      expect(record.target).to.equal(alice.id);
+
+      // Retained RecordsWriteMessage properties.
+      expect(record.id).to.equal(textWriteResponse.message.recordId);
+      expect(record.contextId).to.equal(textWriteResponse.message.contextId);
+      expect(record.dataCid).to.equal(textWriteResponse.message.descriptor.dataCid);
+      expect(record.dataFormat).to.equal(textWriteResponse.message.descriptor.dataFormat);
+      expect(record.dataSize).to.equal(textWriteResponse.message.descriptor.dataSize);
+      expect(record.dateCreated).to.equal(textWriteResponse.message.descriptor.dateCreated);
+      expect(record.dateModified).to.equal(textWriteResponse.message.descriptor.dateModified);
+      expect(record.interface).to.equal(textWriteResponse.message.descriptor.interface);
+      expect(record.method).to.equal(textWriteResponse.message.descriptor.method);
+      expect(record.protocol).to.equal(textWriteResponse.message.descriptor.protocol);
+      expect(record.protocolPath).to.equal(textWriteResponse.message.descriptor.protocolPath);
+      expect(record.recipient).to.equal(textWriteResponse.message.descriptor.recipient);
+      expect(record.schema).to.equal(textWriteResponse.message.descriptor.schema);
+
+      // Expected undefined properties.
+      expect(record.parentId).to.be.undefined;
+      expect(record.datePublished).to.be.undefined;
+      expect(record.published).to.be.undefined;
+    });
+
+    it('should retain all expected properties for a published record', async () => {
+      const target = alice.id;
+      const request = {
+        author: alice.id,
+        data: dataText,
+        message: {
+          dataFormat: dataFormat,
+          published: true,
+        }
+      };
+
+      textWriteResponse = await web5.dwn.records.write(target, request);
+      
+      const record = new Record(web5.dwn, {
+        ...textWriteResponse.message,
+        encodedData: dataBytes,
+        target,
+        author: request.author
+      });
+
+      expect(record.datePublished).to.not.be.undefined;
+      expect(record.datePublished).to.equal(textWriteResponse.message.descriptor.datePublished);
+      expect(record.published).to.not.be.undefined;
+      expect(record.published).to.equal(textWriteResponse.message.descriptor.published);
+    });
+
+    it('should retain parentId if specified', async () => {
+      const target = alice.id;
+      let request = {
+        author: alice.id,
+        data: dataText,
+        message: {
+          dataFormat: dataFormat,
+        }
+      };
+
+      textWriteResponse = await web5.dwn.records.write(target, request);
+
+      request = {
+        author: alice.id,
+        data: dataText,
+        message: {
+          dataFormat: dataFormat,
+          parentId: textWriteResponse.message.recordId,
+        }
+      };
+
+      textWriteResponse = await web5.dwn.records.write(target, request);
+      
+      const record = new Record(web5.dwn, {
+        ...textWriteResponse.message,
+        encodedData: dataBytes,
+        target,
+        author: request.author
+      });
+
+      expect(record.parentId).to.not.be.undefined;
+      expect(record.parentId).to.equal(textWriteResponse.message.descriptor.parentId);
+    });
+
   });
 });

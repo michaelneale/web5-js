@@ -6,9 +6,11 @@ import { isReadableWebStream } from '../dwn-utils.js';
 export class Record {
   #dwn;
 
+  #attestation;
   #author;
   #contextId;
   #descriptor;
+  #encryption;
   #recordId;
   #target;
 
@@ -20,22 +22,22 @@ export class Record {
     this.#dwn = dwn;
 
     // RecordsWriteMessage properties.
-    const { author, contextId = undefined, descriptor, recordId = null, target } = options;
-    this.#contextId = contextId;
-    this.#descriptor = descriptor ?? { };
-    delete this.#descriptor.data;
-    this.#recordId = recordId;
+    this.#attestation = options.attestation;
+    this.#contextId = options.contextId;
+    this.#descriptor = options.descriptor ?? { };
+    this.#encryption = options.encryption;
+    this.#recordId = options.recordId;
     
-    // Store the target and author DIDs that were used to create the message to use for subsequent reads, etc.
-    this.#author = author;
-    this.#target = target;
+    // Retain the target and author DIDs that were used to create the message for subsequent operations (e.g., reads).
+    this.#author = options.author;
+    this.#target = options.target;
     
     // If the record `dataSize is less than the DwnConstant.maxDataSizeAllowedToBeEncoded value,
     // then an `encodedData` property will be present.
-    this.#encodedData = options?.encodedData ?? null;
+    this.#encodedData = options.encodedData ?? null;
 
     // If the record was created from a RecordsRead reply then it will have a `data` property.
-    if (options?.data) {
+    if (options.data) {
       this.#readableStream = isReadableWebStream(options.data) ? new ReadableWebToNodeStream(options.data) : options.data;
     }
   }
@@ -49,22 +51,25 @@ export class Record {
   
   // Immutable DWN Record properties.
   get id() { return this.#recordId; }
+  get attestation() { return this.#attestation; }
   get contextId() { return this.#contextId; }
-  get dataFormat() { return this.#descriptor?.dataFormat; }
-  get dateCreated() { return this.#descriptor?.dateCreated; }
-  get interface() { return this.#descriptor?.interface; }
-  get method() { return this.#descriptor?.method; }
-  get parentId() { return this.#descriptor?.parentId; }
-  get protocol() { return this.#descriptor?.protocol; }
-  get recipient() { return this.#descriptor?.recipient; }
-  get schema() { return this.#descriptor?.schema; }
+  get encryption() { return this.#encryption; }
+  get dataFormat() { return this.#descriptor.dataFormat; }
+  get dateCreated() { return this.#descriptor.dateCreated; }
+  get interface() { return this.#descriptor.interface; }
+  get method() { return this.#descriptor.method; }
+  get parentId() { return this.#descriptor.parentId; }
+  get protocol() { return this.#descriptor.protocol; }
+  get protocolPath() { return this.#descriptor.protocolPath; }
+  get recipient() { return this.#descriptor.recipient; }
+  get schema() { return this.#descriptor.schema; }
 
   // Mutable DWN Record properties.
-  get dataCid() { return this.#descriptor?.dataCid; }
-  get dataSize() { return this.#descriptor?.dataSize; }
-  get dateModified() { return this.#descriptor?.dateModified; }
-  get datePublished() { return this.#descriptor?.datePublished; }
-  get published() { return this.#descriptor?.published; }
+  get dataCid() { return this.#descriptor.dataCid; }
+  get dataSize() { return this.#descriptor.dataSize; }
+  get dateModified() { return this.#descriptor.dateModified; }
+  get datePublished() { return this.#descriptor.datePublished; }
+  get published() { return this.#descriptor.published; }
 
   /**
    * Data handling.

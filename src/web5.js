@@ -145,9 +145,10 @@ export class Web5 extends EventTarget {
     }
 
     if (response && !isUnsignedMessage(request.message)) {
-      // If the message is signed return the `descriptor`, and if present, `recordId`.
-      const { recordId = null, descriptor } = request.message.message;
-      response.message = { recordId, descriptor };
+      // If the message is signed return the `descriptor`, and if present, `attestation`, `contextId`,
+      // `encryption` and `recordId`.
+      const { attestation = null, contextId = null, descriptor, encryption = null, recordId = null } = request.message.message;
+      response.message = { attestation, contextId, descriptor, encryption, recordId };
     }
 
     response ??= { status: { code: 503, detail: 'Service Unavailable' } };
