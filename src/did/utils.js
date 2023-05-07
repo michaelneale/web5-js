@@ -35,7 +35,7 @@ export const DID_VERIFICATION_RELATIONSHIPS = [
  * @param {Uint8Array} options.privateKey Private key bytes
  * @returns {{ id: string, type: string, controller: string, keyPair: Object}}
  */
-export async function createJWK(options) {
+export async function createJwk(options) {
   const { id, crv, kty, kid, publicKey, privateKey } = options;
   const jsonWebKey = {
     id: `${id}#${kid}`,

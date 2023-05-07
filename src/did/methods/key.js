@@ -6,7 +6,7 @@ import {
   encodeMultibaseBase58,
   MULTICODEC_ED25519_PUB_HEADER,
   MULTICODEC_X25519_PUB_HEADER,
-  createJWK,
+  createJwk,
 } from '../utils.js';
 
 const didKeyResolver = new DidKeyResolver();
@@ -21,7 +21,7 @@ export async function create(options = { }) {
   
   const id = `did:key:${verificationKeyId}`;
 
-  const verificationKey = await createJWK({
+  const verificationKey = await createJwk({
     id,
     crv: 'Ed25519',
     kid: verificationKeyId,
@@ -30,7 +30,7 @@ export async function create(options = { }) {
     privateKey: verificationKeyPair.secretKey,
   });
 
-  const keyAgreementKey = await createJWK({
+  const keyAgreementKey = await createJwk({
     id,
     crv: 'X25519',
     kid: keyAgreementKeyId,
