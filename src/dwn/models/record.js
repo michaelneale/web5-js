@@ -209,23 +209,26 @@ export class Record {
    */
   toJSON() {
     return {
+      attestation: this.attestation,
       author: this.author,
-      target: this.target,
-      recordId: this.id,
       contextId: this.contextId,
+      dataCid: this.dataCid,
       dataFormat: this.dataFormat,
+      dataSize: this.dataSize,
       dateCreated: this.dateCreated,
+      dateModified: this.dateModified,
+      datePublished: this.datePublished,
+      encryption: this.encryption,
       interface: this.interface,
       method: this.method,
       parentId: this.parentId,
       protocol: this.protocol,
-      recipient: this.recipient,
-      schema: this.schema,
-      dataCid: this.dataCid,
-      dataSize: this.dataSize,
-      dateModified: this.dateModified,
-      datePublished: this.datePublished,
       published: this.published,
+      protocolPath: this.protocolPath,
+      recipient: this.recipient,
+      recordId: this.id,
+      schema: this.schema,
+      target: this.target,
     };
   }
 

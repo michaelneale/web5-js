@@ -1,6 +1,6 @@
 import chaiAsPromised from 'chai-as-promised';
 import chai, { expect } from 'chai';
-import { DataStream, DwnConstant } from '@tbd54566975/dwn-sdk-js';
+import { DataStream, DwnConstant, DwnInterfaceName, DwnMethodName, Jws, KeyDerivationScheme, RecordsWrite } from '@tbd54566975/dwn-sdk-js';
 
 import { Web5 } from '../../../src/web5.js';
 import { Record } from '../../../src/dwn/models/record.js';
@@ -15,8 +15,7 @@ import chatProtocolDefinition from '../../fixtures/protocol-definitions/chat.jso
 chai.use(chaiAsPromised);
 
 describe('Record', async () => {
-  let dataBytes, dataFormat, testDwn, web5;
-  let alice;
+  let alice, dataBytes, dataFormat, dataText, testDwn, web5;
 
   before(async () => {
     testDwn = await TestDwn.create();
@@ -33,11 +32,245 @@ describe('Record', async () => {
         },
       },
     });
+
+    dataText = TestDataGenerator.randomString(100);
+    ({ dataBytes, dataFormat } = dataToBytes(dataText));
   });
 
   after(async () => {
     // Close connections to the underlying stores.
     await testDwn.close();
+  });
+
+  it('should retain all defined properties', async () => {
+    // Web5 properties.
+    const author = alice.id;
+    const target = alice.id;
+
+    // RecordsWriteMessage properties that can be pre-defined.
+    const keyId = '#dwn';
+    const attestation = Jws.createSignatureInputs([{
+      keyId: alice.id + keyId,
+      keyPair: alice.keys.find(key => key.id === 'dwn').keyPair,
+    }]);
+    const authorization = Jws.createSignatureInput({
+      keyId: alice.id + keyId,
+      keyPair: alice.keys.find(key => key.id === 'dwn').keyPair,
+    });
+
+    const encryptionInput = {
+      initializationVector : TestDataGenerator.randomBytes(16),
+      key                  : TestDataGenerator.randomBytes(32),
+      keyEncryptionInputs  : [
+        {
+          derivationScheme : KeyDerivationScheme.Protocols,
+          publicKey        : alice.keys.find(key => key.id === 'dwn').keyPair.publicJwk // reusing signing key for encryption purely as a convenience
+        },
+        {
+          derivationScheme : KeyDerivationScheme.Schemas,
+          publicKey        : alice.keys.find(key => key.id === 'dwn').keyPair.publicJwk // reusing signing key for encryption purely as a convenience
+        },
+      ]
+    };
+
+    // RecordsWriteDescriptor properties that can be pre-defined.
+    const protocol = 'http://example.org/chat/protocol';
+    const protocolPath = 'message';
+    const recipient = alice.id;
+    const published = true;
+    const schema = 'http://example.org/chat/schema/message';
+    const interfaceName = DwnInterfaceName.Records;
+    const method = DwnMethodName.Write;
+
+    // Create a parent record to reference in the RecordsWriteMessage used for validation.
+    const parentRecorsWrite = await RecordsWrite.create({
+      interface: interfaceName,
+      method,
+      protocol,
+      protocolPath,
+      schema,
+      data: dataBytes,
+      dataFormat,
+      authorizationSignatureInput: authorization,
+    });
+    
+    // Create a RecordsWriteMessage.
+    const recordsWrite = await RecordsWrite.create({
+      interfaceName,
+      method,
+      protocol,
+      protocolPath,
+      recipient,
+      schema,
+      parentId: parentRecorsWrite.recordId,
+      data: dataBytes,
+      published,
+      dataFormat,
+      attestationSignatureInputs: attestation,
+      authorizationSignatureInput: authorization,
+      encryptionInput,
+    });
+
+    // RecordsWriteMessage top-level properties computed by `dwn-sdk-js`.
+    const contextId = recordsWrite.message.contextId; 
+    const encryption = recordsWrite.message.encryption;
+    const recordId = recordsWrite.message.recordId;
+    
+    // Create record using test RecordsWriteMessage.
+    const record = new Record(web5.dwn, {
+      ...recordsWrite.message,
+      encodedData: dataBytes,
+      target,
+      author,
+    });
+
+    // Retained Web5 JS properties.
+    expect(record.author).to.equal(author);
+    expect(record.target).to.equal(target);
+
+    // Retained RecordsWriteMessage top-level properties.
+    expect(record.contextId).to.equal(contextId);
+    expect(record.id).to.equal(recordId);
+    expect(record.encryption).to.not.be.undefined;
+    expect(record.encryption).to.deep.equal(encryption);
+    expect(record.encryption.keyEncryption.find(key => key.derivationScheme === KeyDerivationScheme.Protocols));
+    expect(record.encryption.keyEncryption.find(key => key.derivationScheme === KeyDerivationScheme.Schemas));
+    expect(record.attestation).to.not.be.undefined;
+    expect(record.attestation).to.have.property('signatures');
+    
+    // Retained RecordsWriteDescriptor properties.
+    expect(record.interface).to.equal(interfaceName);
+    expect(record.method).to.equal(method);
+    expect(record.protocol).to.equal(protocol);
+    expect(record.protocolPath).to.equal(protocolPath);
+    expect(record.recipient).to.equal(recipient);
+    expect(record.schema).to.equal(schema);
+    expect(record.parentId).to.equal(parentRecorsWrite.recordId);
+    expect(record.dataCid).to.equal(recordsWrite.message.descriptor.dataCid);
+    expect(record.dataSize).to.equal(recordsWrite.message.descriptor.dataSize);
+    expect(record.dateCreated).to.equal(recordsWrite.message.descriptor.dateCreated);
+    expect(record.dateModified).to.equal(recordsWrite.message.descriptor.dateModified);
+    expect(record.published).to.equal(published);
+    expect(record.datePublished).to.equal(recordsWrite.message.descriptor.datePublished);
+    expect(record.dataFormat).to.equal(dataFormat);
+  });
+
+  describe('toJSON()', () => {
+    it('should return all defined properties', async () => {
+      // Web5 properties.
+      const author = alice.id;
+      const target = alice.id;
+
+      // RecordsWriteMessage properties that can be pre-defined.
+      const keyId = '#dwn';
+      const attestation = Jws.createSignatureInputs([{
+        keyId: alice.id + keyId,
+        keyPair: alice.keys.find(key => key.id === 'dwn').keyPair,
+      }]);
+      const authorization = Jws.createSignatureInput({
+        keyId: alice.id + keyId,
+        keyPair: alice.keys.find(key => key.id === 'dwn').keyPair,
+      });
+
+      const encryptionInput = {
+        initializationVector : TestDataGenerator.randomBytes(16),
+        key                  : TestDataGenerator.randomBytes(32),
+        keyEncryptionInputs  : [
+          {
+            derivationScheme : KeyDerivationScheme.Protocols,
+            publicKey        : alice.keys.find(key => key.id === 'dwn').keyPair.publicJwk // reusing signing key for encryption purely as a convenience
+          },
+          {
+            derivationScheme : KeyDerivationScheme.Schemas,
+            publicKey        : alice.keys.find(key => key.id === 'dwn').keyPair.publicJwk // reusing signing key for encryption purely as a convenience
+          },
+        ]
+      };
+
+      // RecordsWriteDescriptor properties that can be pre-defined.
+      const protocol = 'http://example.org/chat/protocol';
+      const protocolPath = 'message';
+      const recipient = alice.id;
+      const published = true;
+      const schema = 'http://example.org/chat/schema/message';
+      const interfaceName = DwnInterfaceName.Records;
+      const method = DwnMethodName.Write;
+
+      // Create a parent record to reference in the RecordsWriteMessage used for validation.
+      const parentRecorsWrite = await RecordsWrite.create({
+        interface: interfaceName,
+        method,
+        protocol,
+        protocolPath,
+        schema,
+        data: dataBytes,
+        dataFormat,
+        authorizationSignatureInput: authorization,
+      });
+      
+      // Create a RecordsWriteMessage.
+      const recordsWrite = await RecordsWrite.create({
+        interfaceName,
+        method,
+        protocol,
+        protocolPath,
+        recipient,
+        schema,
+        parentId: parentRecorsWrite.recordId,
+        data: dataBytes,
+        published,
+        dataFormat,
+        attestationSignatureInputs: attestation,
+        authorizationSignatureInput: authorization,
+        encryptionInput,
+      });
+
+      // RecordsWriteMessage top-level properties computed by `dwn-sdk-js`.
+      const contextId = recordsWrite.message.contextId; 
+      const encryption = recordsWrite.message.encryption;
+      const recordId = recordsWrite.message.recordId;
+      
+      // Create record using test RecordsWriteMessage.
+      const record = new Record(web5.dwn, {
+        ...recordsWrite.message,
+        encodedData: dataBytes,
+        target,
+        author,
+      });
+
+      // Call toJSON() method.
+      const recordJson = record.toJSON();
+
+      // Retained Web5 JS properties.
+      expect(recordJson.author).to.equal(author);
+      expect(recordJson.target).to.equal(target);
+
+      // Retained RecordsWriteMessage top-level properties.
+      expect(recordJson.contextId).to.equal(contextId);
+      expect(recordJson.recordId).to.equal(recordId);
+      expect(recordJson.encryption).to.not.be.undefined;
+      expect(recordJson.encryption).to.deep.equal(encryption);
+      expect(recordJson.encryption.keyEncryption.find(key => key.derivationScheme === KeyDerivationScheme.Protocols));
+      expect(recordJson.encryption.keyEncryption.find(key => key.derivationScheme === KeyDerivationScheme.Schemas));
+      expect(recordJson.attestation).to.not.be.undefined;
+      expect(recordJson.attestation).to.have.property('signatures');
+      
+      // Retained RecordsWriteDescriptor properties.
+      expect(recordJson.interface).to.equal(interfaceName);
+      expect(recordJson.method).to.equal(method);
+      expect(recordJson.protocol).to.equal(protocol);
+      expect(recordJson.protocolPath).to.equal(protocolPath);
+      expect(recordJson.recipient).to.equal(recipient);
+      expect(recordJson.schema).to.equal(schema);
+      expect(recordJson.parentId).to.equal(parentRecorsWrite.recordId);
+      expect(recordJson.dataCid).to.equal(recordsWrite.message.descriptor.dataCid);
+      expect(recordJson.dataSize).to.equal(recordsWrite.message.descriptor.dataSize);
+      expect(recordJson.dateCreated).to.equal(recordsWrite.message.descriptor.dateCreated);
+      expect(recordJson.dateModified).to.equal(recordsWrite.message.descriptor.dateModified);
+      expect(recordJson.published).to.equal(published);
+      expect(recordJson.datePublished).to.equal(recordsWrite.message.descriptor.datePublished);
+      expect(recordJson.dataFormat).to.equal(dataFormat);
+    });
   });
 
   describe('created from RecordsRead response', () => {
@@ -150,130 +383,5 @@ describe('Record', async () => {
         });
       });
     });
-  });
-
-  describe('created from RecordsWrite response', () => {
-    let dataText, textWriteResponse;
-
-    before(async () => {
-      dataText = TestDataGenerator.randomString(100);
-      ({ dataBytes, dataFormat } = dataToBytes(dataText));
-    });
-
-    it('should retain all expected properties when a protocol is specified', async () => {
-      const protocolsConfigureResponse = await web5.dwn.protocols.configure(alice.id, {
-        author: alice.id,
-        message: {
-          protocol: 'http://example.org/chat/protocol',
-          definition: chatProtocolDefinition,
-        }
-      });
-
-      const target = alice.id;
-      const request = {
-        author: alice.id,
-        data: dataText,
-        message: {
-          dataFormat: dataFormat,
-          protocol: 'http://example.org/chat/protocol',
-          protocolPath: 'message',
-          schema: 'http://example.org/chat/schema/message',
-        }
-      };
-
-      textWriteResponse = await web5.dwn.records.write(target, request);
-      
-      const record = new Record(web5.dwn, {
-        ...textWriteResponse.message,
-        encodedData: dataBytes,
-        target,
-        author: request.author
-      });
-
-      // Retained Web5 JS properties.
-      expect(record.author).to.equal(alice.id);
-      expect(record.target).to.equal(alice.id);
-
-      // Retained RecordsWriteMessage properties.
-      expect(record.id).to.equal(textWriteResponse.message.recordId);
-      expect(record.contextId).to.equal(textWriteResponse.message.contextId);
-      expect(record.dataCid).to.equal(textWriteResponse.message.descriptor.dataCid);
-      expect(record.dataFormat).to.equal(textWriteResponse.message.descriptor.dataFormat);
-      expect(record.dataSize).to.equal(textWriteResponse.message.descriptor.dataSize);
-      expect(record.dateCreated).to.equal(textWriteResponse.message.descriptor.dateCreated);
-      expect(record.dateModified).to.equal(textWriteResponse.message.descriptor.dateModified);
-      expect(record.interface).to.equal(textWriteResponse.message.descriptor.interface);
-      expect(record.method).to.equal(textWriteResponse.message.descriptor.method);
-      expect(record.protocol).to.equal(textWriteResponse.message.descriptor.protocol);
-      expect(record.protocolPath).to.equal(textWriteResponse.message.descriptor.protocolPath);
-      expect(record.recipient).to.equal(textWriteResponse.message.descriptor.recipient);
-      expect(record.schema).to.equal(textWriteResponse.message.descriptor.schema);
-
-      // Expected undefined properties.
-      expect(record.parentId).to.be.undefined;
-      expect(record.datePublished).to.be.undefined;
-      expect(record.published).to.be.undefined;
-    });
-
-    it('should retain all expected properties for a published record', async () => {
-      const target = alice.id;
-      const request = {
-        author: alice.id,
-        data: dataText,
-        message: {
-          dataFormat: dataFormat,
-          published: true,
-        }
-      };
-
-      textWriteResponse = await web5.dwn.records.write(target, request);
-      
-      const record = new Record(web5.dwn, {
-        ...textWriteResponse.message,
-        encodedData: dataBytes,
-        target,
-        author: request.author
-      });
-
-      expect(record.datePublished).to.not.be.undefined;
-      expect(record.datePublished).to.equal(textWriteResponse.message.descriptor.datePublished);
-      expect(record.published).to.not.be.undefined;
-      expect(record.published).to.equal(textWriteResponse.message.descriptor.published);
-    });
-
-    it('should retain parentId if specified', async () => {
-      const target = alice.id;
-      let request = {
-        author: alice.id,
-        data: dataText,
-        message: {
-          dataFormat: dataFormat,
-        }
-      };
-
-      textWriteResponse = await web5.dwn.records.write(target, request);
-
-      request = {
-        author: alice.id,
-        data: dataText,
-        message: {
-          dataFormat: dataFormat,
-          parentId: textWriteResponse.message.recordId,
-        }
-      };
-
-      textWriteResponse = await web5.dwn.records.write(target, request);
-      
-      const record = new Record(web5.dwn, {
-        ...textWriteResponse.message,
-        encodedData: dataBytes,
-        target,
-        author: request.author
-      });
-
-      expect(record.parentId).to.not.be.undefined;
-      expect(record.parentId).to.equal(textWriteResponse.message.descriptor.parentId);
-    });
-
   });
 });
