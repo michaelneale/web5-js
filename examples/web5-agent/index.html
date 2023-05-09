@@ -439,68 +439,6 @@ entries.forEach(async record => {
     }));
     appendStdoutLine('configure_protocols_output', `Configure Protocol Carol: ${JSON.stringify(status, null, 2)}`);
   
-
-    // const authorizationSignatureInputBob = {
-    //   privateJwk: bob.keys.find(key => key.id === 'dwn').keyPair.privateJwk,
-    //   protectedHeader: { alg: 'ES256K', kid: `${bob.id}#dwn` },
-    // }
-    
-    // const authorizationSignatureInputCarol = {
-    //   privateJwk: carol.keys.find(key => key.id === 'dwn').keyPair.privateJwk,
-    //   protectedHeader: { alg: 'ES256K', kid: `${carol.id}#dwn` },
-    // }
-
-    // const protocolsConfigureBob = await ProtocolsConfigure.create({
-    //   protocol: 'test',
-    //   definition: testProtocolDefinition,
-    //   authorizationSignatureInput: authorizationSignatureInputBob,
-    // });
-
-    // const protocolsConfigureCarol = await ProtocolsConfigure.create({
-    //   protocol: 'test',
-    //   definition: testProtocolDefinition,
-    //   authorizationSignatureInput: authorizationSignatureInputCarol,
-    // });
-
-    // const protocolsConfigureMessageBob = {
-    //   jsonrpc: '2.0',
-    //   method: 'dwn.processMessage',
-    //   params: {
-    //     target: bob.id,
-    //     message: protocolsConfigureBob,
-    //   },
-    //   id: Date.now(),
-    // }
-
-    // const protocolsConfigureMessageCarol = {
-    //   jsonrpc: '2.0',
-    //   method: 'dwn.processMessage',
-    //   params: {
-    //     target: carol.id,
-    //     message: protocolsConfigureCarol,
-    //   },
-    //   id: Date.now(),
-    // }
-
-    // const protocolsConfigureResponseBob = await fetch('http://localhost:3000', {
-    //   method: 'POST',
-    //   headers: {
-    //     'dwn-request': JSON.stringify(protocolsConfigureMessageBob)
-    //   }
-    // });
-    // const protocolsConfigureResponseStatusBob = (await protocolsConfigureResponseBob.json()).result.reply.status;
-    
-    // const protocolsConfigureResponseCarol = await fetch('http://localhost:3000', {
-    //   method: 'POST',
-    //   headers: {
-    //     'dwn-request': JSON.stringify(protocolsConfigureMessageCarol)
-    //   }
-    // });
-    // const protocolsConfigureResponseStatusCarol = (await protocolsConfigureResponseCarol.json()).result.reply.status;
-    // generateStdoutElement('configure_protocols_output', 'Configure Protocols Output');
-    // appendStdoutLine('configure_protocols_output', `Configure Protocol Bob: ${JSON.stringify(protocolsConfigureResponseStatusBob, null, 2)}`);
-    // appendStdoutLine('configure_protocols_output', `Configure Protocol Carol: ${JSON.stringify(protocolsConfigureResponseStatusCarol, null, 2)}`);
-
     /**
      * Bob sends a message to Carol.
      */
