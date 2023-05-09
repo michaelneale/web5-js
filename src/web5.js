@@ -147,7 +147,7 @@ export class Web5 extends EventTarget {
     if (response && !isUnsignedMessage(request.message)) {
       // If the message is signed return the `descriptor`, and if present, `attestation`, `contextId`,
       // `encryption` and `recordId`.
-      const { attestation = null, contextId = null, descriptor, encryption = null, recordId = null } = request.message.message;
+      const { attestation, contextId, descriptor, encryption, recordId } = request.message.message;
       response.message = { attestation, contextId, descriptor, encryption, recordId };
     }
 
