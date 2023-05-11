@@ -19,17 +19,22 @@ jobs:
       run: npm run build
     - name: Publish packages
       run: |
-        INITIAL_COMMIT=$(git rev-list --max-parents=0 HEAD)
         for dir in packages/*; do
-          if [ -d "$dir" ] && git diff --name-only $INITIAL_COMMIT..HEAD -- "$dir/package.json"; then
-            echo "Publishing $dir..."
-            cd $dir
-            echo "Checking npm authentication..."
-            npm whoami
-            npm publish
-            cd ../..
-          else
-            echo "Skipping $dir..."
+          if [ -d "$dir" ]; then
+            DIFF_OUTPUT=$(git diff --name-only HEAD^..HEAD -- "$dir/package.json" 2>&1)
+            if echo "$DIFF_OUTPUT" | grep -q "fatal"; then
+              echo "$DIFF_OUTPUT"
+              exit 1
+            elif [ -n "$DIFF_OUTPUT" ]; then
+              echo "Publishing $dir..."
+              cd $dir
+              echo "Checking npm authentication..."
+              npm whoami
+              npm publish
+              cd ../..
+            else
+              echo "Skipping $dir..."
+            fi
           fi
         done
       env:
