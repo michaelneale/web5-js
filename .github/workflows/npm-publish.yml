@@ -19,8 +19,9 @@ jobs:
       run: npm run build
     - name: Publish packages
       run: |
+        INITIAL_COMMIT=$(git rev-list --max-parents=0 HEAD)
         for dir in packages/*; do
-          if [ -d "$dir" ] && git diff --name-only HEAD^..HEAD -- "$dir/package.json"; then
+          if [ -d "$dir" ] && git diff --name-only $INITIAL_COMMIT..HEAD -- "$dir/package.json"; then
             echo "Publishing $dir..."
             cd $dir
             echo "Checking npm authentication..."
