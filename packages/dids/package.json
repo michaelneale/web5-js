@@ -1,5 +1,5 @@
 {
-  "name": "@tbd54566975/dids",
+  "name": "mic-dids",
   "type": "module",
   "version": "1.0.0",
   "main": "./dist/cjs/main.cjs",
